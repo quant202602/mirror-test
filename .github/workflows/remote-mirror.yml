@@ -47,12 +47,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release view "${{ inputs.release_tag }}" >/dev/null 2>&1 || \
-            gh release create "${{ inputs.release_tag }}" \
+          gh release view "${{ inputs.release_tag }}" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "${{ inputs.release_tag }}" -R "$GITHUB_REPOSITORY" \
               --title "${{ inputs.release_tag }}" \
               --notes "Mirrored cloud-side via GitHub Actions (remote-mirror workflow)."
 
       - name: Upload asset to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ inputs.release_tag }}" "${{ inputs.asset_name }}" --clobber
+        run: gh release upload "${{ inputs.release_tag }}" "${{ inputs.asset_name }}" --clobber -R "$GITHUB_REPOSITORY"
