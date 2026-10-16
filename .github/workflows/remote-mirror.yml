@@ -1,0 +1,51 @@
+name: remote-mirror
+
+# Mirror a video to a GitHub Release WITHOUT downloading it on your own computer.
+# The bytes flow: source URL -> GitHub Actions runner -> GitHub Release CDN.
+#
+# Run it: Actions tab -> remote-mirror -> Run workflow -> fill in the 3 inputs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: "Direct HTTP(S) URL of the video file"
+        required: true
+      asset_name:
+        description: "Release asset filename (e.g. bbb_720p.mp4)"
+        required: true
+      release_tag:
+        description: "Release tag to attach the asset to"
+        required: true
+        default: "v1.0"
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch video on the runner (nothing is downloaded to a local PC)
+        run: curl -fL --retry 3 --max-time 1800 -o input_video "${{ inputs.video_url }}"
+
+      - name: Remux to faststart MP4 (video stream copied, audio forced to AAC)
+        run: |
+          ffmpeg -y -hide_banner -loglevel error -i input_video \
+            -c:v copy -c:a aac -b:a 160k \
+            -movflags +faststart -f mp4 "${{ inputs.asset_name }}"
+          ls -lah "${{ inputs.asset_name }}"
+
+      - name: Create release if missing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "${{ inputs.release_tag }}" >/dev/null 2>&1 || \
+            gh release create "${{ inputs.release_tag }}" \
+              --title "${{ inputs.release_tag }}" \
+              --notes "Mirrored cloud-side via GitHub Actions (remote-mirror workflow)."
+
+      - name: Upload asset to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ inputs.release_tag }}" "${{ inputs.asset_name }}" --clobber
