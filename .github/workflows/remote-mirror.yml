@@ -29,10 +29,17 @@ jobs:
       - name: Fetch video on the runner (nothing is downloaded to a local PC)
         run: curl -fL --retry 3 --max-time 1800 -o input_video "${{ inputs.video_url }}"
 
+      - name: Install ffmpeg (runner images no longer bundle it)
+        run: |
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          fi
+          ffmpeg -version | head -1
+
       - name: Remux to faststart MP4 (video stream copied, audio forced to AAC)
         run: |
           ffmpeg -y -hide_banner -loglevel error -i input_video \
-            -c:v copy -c:a aac -b:a 160k \
+            -c:v copy -c:a aac -b:a 160k -ac 2 \
             -movflags +faststart -f mp4 "${{ inputs.asset_name }}"
           ls -lah "${{ inputs.asset_name }}"
 
